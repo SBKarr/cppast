@@ -82,7 +82,7 @@ libclang_compile_config::libclang_compile_config() : libclang_compile_config(CPP
 
 libclang_compile_config::libclang_compile_config(std::string clang_binary)
 : compile_config({}), write_preprocessed_(false), fast_preprocessing_(false),
-  remove_comments_in_macro_(false), use_c_(false)
+  remove_comments_in_macro_(false)
 {
     // set given clang binary
     set_clang_binary(clang_binary);
@@ -216,22 +216,27 @@ libclang_compile_config::libclang_compile_config(const libclang_compilation_data
 cppast::libclang_compile_config::libclang_compile_config(
     std::string clang_binary, const libclang_compilation_database& database,
     const std::string& file)
-: libclang_compile_config(clang_binary)
-{
+: compile_config({}), write_preprocessed_(false), fast_preprocessing_(false),
+  remove_comments_in_macro_(false) {
     auto cxcommands
         = clang_CompilationDatabase_getCompileCommands(database.database_, file.c_str());
     if (cxcommands == nullptr)
         throw libclang_error(detail::format("no compile commands specified for file '", file, "'"));
     cxcompile_commands commands(cxcommands);
 
+    std::string exe;
     auto size = clang_CompileCommands_getSize(commands.get());
     for (auto i = 0u; i != size; ++i)
     {
         auto cmd = clang_CompileCommands_getCommand(commands.get(), i);
 
         // If ++ exists within the compiler name (e.g. clang++, g++, etc), use C++
-        std::string exe(clang_getCString(clang_CompileCommand_getArg(cmd, 0)));
-        use_c_ = (exe.find("++", 0) == std::string::npos);
+        if (exe.empty()) {
+            exe = std::string(clang_getCString(clang_CompileCommand_getArg(cmd, 0)));
+            if (exe.find("++", 0) != std::string::npos) {
+                language_ = "-xc++";
+            }
+        }
 
         auto dir = detail::cxstring(clang_CompileCommand_getDirectory(cmd));
         parse_flags(cmd, [&](std::string flag, std::string args) {
@@ -251,7 +256,9 @@ cppast::libclang_compile_config::libclang_compile_config(
             }
             else if (flag == "-std")
             {
-                use_c_ = (args.find("++") == std::string::npos);
+            	if (args.find("++") == std::string::npos) {
+            		language_ = "-xc";
+            	}
                 add_flag(std::move(flag) + "=" + std::move(args));
             }
             else if (flag == "-f")
@@ -259,14 +266,22 @@ cppast::libclang_compile_config::libclang_compile_config(
                 add_flag(std::move(flag) + std::move(args));
             else if (flag == "-x")
             {
-                // language
-                if (args == "c")
-                    use_c_ = true;
-                else
-                    use_c_ = false;
+            	language_ = "-x";
+            	language_.append(args);
+            }
+            else if (flag.substr(0, 2) == "-x")
+            {
+            	language_ = flag;
             }
         });
     }
+
+    set_clang_binary(clang_binary);
+
+    // set macros to detect cppast
+    define_macro("__cppast__", "libclang");
+    define_macro("__cppast_version_major__", CPPAST_VERSION_MAJOR);
+    define_macro("__cppast_version_minor__", CPPAST_VERSION_MINOR);
 }
 
 namespace
@@ -287,7 +302,7 @@ bool is_valid_binary(const std::string& binary)
 void add_default_include_dirs(libclang_compile_config& config)
 {
     std::string  verbose_output;
-    std::string  language = config.use_c() ? "-xc" : "-xc++";
+    std::string  language = config.get_language();
     tpl::Process process(
         detail::libclang_compile_config_access::clang_binary(config) + " " + language + " -v -", "",
         [](const char*, std::size_t) {},
@@ -486,18 +501,6 @@ void libclang_compile_config::do_set_flags(cpp_standard standard, compile_flags 
             throw std::invalid_argument("c2x is not yet supported for current version of clang");
     }
 
-    // Add language flag for C or C++
-    if (is_c_standard(standard))
-    {
-        add_flag("-xc");
-        use_c_ = true;
-    }
-    else
-    {
-        add_flag("-xc++");
-        use_c_ = false;
-    }
-
     if (flags & compile_flag::ms_compatibility)
     {
         add_flag("-fms-compatibility");
@@ -535,7 +538,12 @@ void libclang_compile_config::do_remove_macro_definition(std::string name)
 
 bool libclang_compile_config::do_use_c() const noexcept
 {
-    return use_c_;
+    return language_ == "-xc" || language_ == "-xc-header";
+}
+
+const std::string &libclang_compile_config::do_get_language() const noexcept
+{
+	return language_;
 }
 
 type_safe::optional<libclang_compile_config> cppast::find_config_for(
@@ -592,6 +600,9 @@ std::vector<const char*> get_arguments(const libclang_compile_config& config)
         = {"-I."}; // enable current directory for include search
     for (auto& flag : detail::libclang_compile_config_access::flags(config))
         args.push_back(flag.c_str());
+
+    args.push_back(config.get_language().c_str());
+
     return args;
 }
 
@@ -647,7 +658,7 @@ detail::cxtranslation_unit get_cxunit(const diagnostic_logger& logger, const det
 
     CXTranslationUnit tu;
     auto              flags = CXTranslationUnit_Incomplete | CXTranslationUnit_KeepGoing
-                 | CXTranslationUnit_DetailedPreprocessingRecord;
+                | CXTranslationUnit_DetailedPreprocessingRecord;
 
     auto error
         = clang_parseTranslationUnit2(idx.get(), path, // index and path

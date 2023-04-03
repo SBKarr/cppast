@@ -178,7 +178,7 @@ std::string get_macro_command(const libclang_compile_config& c, const char* full
     // -I.: add current working directory to include search path
     // -E: print preprocessor output
     // -dM: print macro definitions instead of preprocessed file
-    std::string language = c.use_c() ? "-xc" : "-xc++";
+    std::string language = c.get_language();
     auto        flags    = language + " -I. -E -dM";
     flags += diagnostics_flags();
 
@@ -202,7 +202,7 @@ std::string get_preprocess_command(const libclang_compile_config& c, const char*
     // -xc/-xc++: force C or C++ as input language
     // -E: print preprocessor output
     // -dD: keep macros
-    std::string language = c.use_c() ? "-xc" : "-xc++";
+    std::string language = c.get_language();
     auto        flags    = language + " -E -dD";
 
     // -CC: keep comments, even in macro

@@ -172,6 +172,11 @@ public:
         remove_comments_in_macro_ = b;
     }
 
+    void set_language(const std::string &language)
+    {
+    	language_ = language;
+    }
+
 private:
     void do_set_flags(cpp_standard standard, compile_flags flags) override;
 
@@ -190,12 +195,13 @@ private:
 
     bool do_use_c() const noexcept override;
 
+    const std::string &do_get_language() const noexcept override;
+
     std::string clang_binary_;
+    std::string language_ = "-xc++";
     bool        write_preprocessed_ : 1;
     bool        fast_preprocessing_ : 1;
     bool        remove_comments_in_macro_ : 1;
-    bool        use_c_ : 1;
-
     friend detail::libclang_compile_config_access;
 };
 

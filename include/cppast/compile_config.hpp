@@ -168,6 +168,11 @@ public:
         return do_use_c();
     }
 
+    const std::string &get_language() const noexcept
+    {
+    	return do_get_language();
+    }
+
 protected:
     compile_config(std::vector<std::string> def_flags) : flags_(std::move(def_flags)) {}
 
@@ -213,6 +218,8 @@ private:
 
     /// \returns Whether to parse files as C rather than C++.
     virtual bool do_use_c() const noexcept = 0;
+
+    virtual const std::string &do_get_language() const noexcept = 0;
 
     std::vector<std::string> flags_;
 };
