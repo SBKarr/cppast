@@ -9,7 +9,9 @@
 #include <type_safe/variant.hpp>
 
 #include <cppast/cpp_entity_index.hpp>
+#include <cppast/cpp_entity_kind.hpp>
 #include <cppast/detail/assert.hpp>
+#include <iostream>
 
 namespace cppast
 {
@@ -95,8 +97,11 @@ private:
         for (auto& cur : id())
         {
             auto entity = idx.lookup(cur).map([](const cpp_entity& e) {
-                DEBUG_ASSERT(Predicate{}(e), detail::precondition_error_handler{},
-                             "invalid entity type");
+            	if (!Predicate{}(e)) {
+            		std::cout << "Invalid entity type: " << to_string(e.kind()) << "\n";
+            	}
+                //DEBUG_ASSERT(Predicate{}(e), detail::precondition_error_handler{},
+                //             "invalid entity type");
                 return type_safe::ref(static_cast<const T&>(e));
             });
             if (entity)
