@@ -30,6 +30,7 @@ type_safe::object_ref<const diagnostic_logger> cppast::default_verbose_logger() 
 bool stderr_diagnostic_logger::do_log(const char* source, const diagnostic& d) const
 {
     auto loc = d.location.to_string();
+    std::unique_lock<std::mutex> lock(mutex_);
     if (loc.empty())
         std::fprintf(stderr, "[%s] [%s] %s\n", source, to_string(d.severity), d.message.c_str());
     else

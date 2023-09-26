@@ -114,8 +114,10 @@ public:
                                                               source_location(), severity::info});
         auto file = parser_.parse(*idx_, std::move(path), c);
         auto ptr  = file.get();
-        if (file)
+        if (file) {
+        	std::unique_lock<std::mutex> lock(mutex_);
             files_.push_back(std::move(file));
+        }
         return type_safe::opt_ref(ptr);
     }
 
@@ -145,6 +147,7 @@ public:
     }
 
 private:
+    std::mutex mutex_;
     Parser                                        parser_;
     detail::intrusive_list<cpp_file>              files_;
     type_safe::object_ref<const cpp_entity_index> idx_;

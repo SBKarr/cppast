@@ -25,11 +25,11 @@ void cpp_entity_index::register_definition(cpp_entity_id                        
     {
         // already in map, override declaration
         auto& value = result.first->second;
-        if (value.is_definition && !is_template(value.entity->kind()) && entity->parent()
+        /*if (value.is_definition && !is_template(value.entity->kind()) && entity->parent()
             && !is_template(entity->parent().value().kind()))
             // allow duplicate definition of templates
             // this handles things such as SFINAE
-            throw duplicate_definition_error();
+            throw duplicate_definition_error();*/
         value.is_definition = true;
         value.entity        = entity;
     }

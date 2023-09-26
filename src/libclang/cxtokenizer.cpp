@@ -139,16 +139,20 @@ CXSourceLocation get_prev_location(const CXTranslationUnit& tu, const CXFile& fi
 
         simple_tokenizer tokenizer(tu, clang_getRange(loc_before, loc));
 
-        auto token_location = clang_getTokenLocation(tu, tokenizer[0]);
-        if (clang_equalLocations(loc_before, token_location))
-        {
-            // actually found a new token and not just whitespace
-            // loc_before is now the last character of the new token
-            // need to move by token_length - 1 to get to the first character
-            return get_next_location_impl(tu, file, loc, -1 * (inc + int(token_length) - 1));
+        if (tokenizer.size() > 0) {
+            auto token_location = clang_getTokenLocation(tu, tokenizer[0]);
+            if (clang_equalLocations(loc_before, token_location))
+            {
+                // actually found a new token and not just whitespace
+                // loc_before is now the last character of the new token
+                // need to move by token_length - 1 to get to the first character
+                return get_next_location_impl(tu, file, loc, -1 * (inc + int(token_length) - 1));
+            }
+            else
+                ++inc;
+        } else {
+        	break;
         }
-        else
-            ++inc;
     }
 
     return clang_getNullLocation();

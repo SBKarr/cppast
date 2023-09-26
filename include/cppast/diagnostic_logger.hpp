@@ -7,6 +7,7 @@
 #include <type_safe/reference.hpp>
 
 #include <cppast/diagnostic.hpp>
+#include <mutex>
 
 namespace cppast
 {
@@ -63,6 +64,8 @@ public:
 
 private:
     bool do_log(const char* source, const diagnostic& d) const override;
+
+    mutable std::mutex mutex_;
 };
 } // namespace cppast
 
